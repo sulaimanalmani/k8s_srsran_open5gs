@@ -18,38 +18,27 @@ spec:
     spec:
       serviceAccountName: mongodb
       securityContext:
-        fsGroup: 1001
+        # Official image writes to /data/db. We'll ensure it’s writable.
+        fsGroup: 999
         sysctls: []
       containers:
         - name: mongodb
-          image: docker.io/bitnami/mongodb:4.4.4-debian-10-r0
-          imagePullPolicy: "IfNotPresent"
+          image: mongo:4.4.28-focal
+          imagePullPolicy: IfNotPresent
           securityContext:
             runAsNonRoot: true
-            runAsUser: 1001
-          env:
-            - name: BITNAMI_DEBUG
-              value: "false"
-            - name: ALLOW_EMPTY_PASSWORD
-              value: "yes"
-            - name: MONGODB_SYSTEM_LOG_VERBOSITY
-              value: "0"
-            - name: MONGODB_DISABLE_SYSTEM_LOG
-              value: "no"
-            - name: MONGODB_ENABLE_IPV6
-              value: "no"
-            - name: MONGODB_ENABLE_DIRECTORY_PER_DB
-              value: "no"
+            runAsUser: 999
           ports:
             - name: mongodb
               containerPort: 27017
+          # Simple "ping" probes that work without auth
           livenessProbe:
             exec:
               command:
-                - mongo
-                - --disableImplicitSessions
-                - --eval
-                - "db.adminCommand('ping')"
+                - bash
+                - -ec
+                - |
+                  mongo --norc --quiet --eval "db.adminCommand('ping')"
             initialDelaySeconds: 30
             periodSeconds: 10
             timeoutSeconds: 5
@@ -61,7 +50,7 @@ spec:
                 - bash
                 - -ec
                 - |
-                  mongo --disableImplicitSessions $TLS_OPTIONS --eval 'db.hello().isWritablePrimary || db.hello().secondary' | grep -q 'true'
+                  mongo --norc --quiet --eval "db.adminCommand('ping')"
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 5
@@ -72,13 +61,23 @@ spec:
             requests: {}
           volumeMounts:
             - name: datadir
-              mountPath: /bitnami/mongodb/data/db/
+              mountPath: /data/db
+      # If your PV is pre-provisioned with different ownership/permissions,
+      # this initContainer will fix it. Safe to keep; it’s a no-op if already correct.
+      initContainers:
+        - name: fix-perms
+          image: busybox:1.36
+          command: ["sh", "-c", "chown -R 999:999 /data/db || true"]
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: datadir
+              mountPath: /data/db
   volumeClaimTemplates:
     - metadata:
         name: datadir
       spec:
-        accessModes:
-          - "ReadWriteOnce"
+        accessModes: ["ReadWriteOnce"]
         resources:
           requests:
             storage: "1Gi"
