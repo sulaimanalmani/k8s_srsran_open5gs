@@ -68,19 +68,23 @@ ssh -L 32000:localhost:32000 user@your-server-ip
 
 ```bash
 cd path/to/k8s_srsran_open5gs/config/open5gs/
-kubectl apply -k ./networks/ -n open5gs
+kubectl apply -k ./networks5g/ -n open5gs
 ```
 
 4. Deploy MongoDB:
 ```bash
-cd path/to/k8s_srsran_open5gs/config/mongodb/
-kubectl apply -k . -n open5gs
+cd path/to/k8s_srsran_open5gs/config/open5gs/
+kubectl apply -f https://raw.githubusercontent.com/longhorn/longhorn/v1.6.0/deploy/longhorn.yaml
+kubectl apply -k ./mongodb/ -n open5gs
 ```
 
 5. Add subscribers using mongo-tools:
 ```bash
-cd path/to/k8s_srsran_open5gs/config/mongo-tools/
-source ../venv/bin/activate/
+cd path/to/k8s_srsran_open5gs/config/open5gs/mongo-tools/
+sudo apt-get install python3.12-venv
+python3 -m venv ../venv
+source ../venv/bin/activate
+pip install bson pymongo
 python3 ./modify_subscribers.py add
 ```
 
@@ -89,7 +93,7 @@ python3 ./modify_subscribers.py add
 1. Deploy Open5GS:
 
     ```bash
-    cd path/to/k8s_srsran_open5gs/config/open5gs/
+    cd path/to/k8s_srsran_open5gs/config/open5gs/open5gs/
     kubectl apply -k . -n open5gs
     k8s-log.sh amf open5gs # To view AMF logs
     ```
